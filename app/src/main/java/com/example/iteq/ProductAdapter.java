@@ -30,7 +30,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHold
 
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public ViewHolder onCreateViewHolder(@NonNull final ViewGroup parent, int viewType) {
         if (mContext == null) {
             mContext = parent.getContext();
         }
@@ -46,7 +46,10 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHold
                 intent.putExtra("name", name);
                 intent.putExtra("post", post);
 //                mContext.startActivity(intent);
+                //5.0界面切换动画
                 mContext.startActivity(intent, ActivityOptions.makeSceneTransitionAnimation((MainActivity) mContext).toBundle());
+                //5.0共享元素切换动画
+//                mContext.startActivity(intent, ActivityOptions.makeSceneTransitionAnimation(((MainActivity) mContext), holder.productImage, "shared").toBundle());
             }
         });
         return holder;

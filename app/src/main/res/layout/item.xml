@@ -15,6 +15,7 @@
             android:id="@+id/gd_image"
             android:layout_width="match_parent"
             android:layout_height="100dp"
+            android:transitionName="shared"
             android:scaleType="centerCrop" />
 
         <TextView

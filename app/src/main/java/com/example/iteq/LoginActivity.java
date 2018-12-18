@@ -46,7 +46,6 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.name);
-        populateAutoComplete();
         mPasswordView = (EditText) findViewById(R.id.password);
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
@@ -59,13 +58,6 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
         mPostView = findViewById(R.id.post);
-        Button mPostReset = findViewById(R.id.post_reset);
-        mPostReset.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                mPostView.setText("");
-            }
-        });
         Button mEmailSignInButton = (Button) findViewById(R.id.email_sign_in_button);
         mEmailSignInButton.setOnClickListener(new OnClickListener() {
             @Override
@@ -76,59 +68,7 @@ public class LoginActivity extends AppCompatActivity {
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
-        init();
     }
-    private void init() {
-        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(LoginActivity.this);
-        if (pref.getString("name", "") != null && pref.getString("id", "") != null &&
-                pref.getString("post", "") != null) {
-            mEmailView.setText(pref.getString("name", ""));
-            mPasswordView.setText(pref.getString("id", ""));
-            mPostView.setText(pref.getString("post", ""));
-        }
-    }
-
-    private void populateAutoComplete() {
-        if (!mayRequestContacts()) {
-            return;
-        }
-    }
-
-    private boolean mayRequestContacts() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true;
-        }
-        if (checkSelfPermission(READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
-            return true;
-        }
-        if (shouldShowRequestPermissionRationale(READ_CONTACTS)) {
-            Snackbar.make(mEmailView, R.string.permission_rationale, Snackbar.LENGTH_INDEFINITE)
-                    .setAction(android.R.string.ok, new View.OnClickListener() {
-                        @Override
-                        @TargetApi(Build.VERSION_CODES.M)
-                        public void onClick(View v) {
-                            requestPermissions(new String[]{READ_CONTACTS}, REQUEST_READ_CONTACTS);
-                        }
-                    });
-        } else {
-            requestPermissions(new String[]{READ_CONTACTS}, REQUEST_READ_CONTACTS);
-        }
-        return false;
-    }
-
-    /**
-     * Callback received when a permissions request has been completed.
-     */
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        if (requestCode == REQUEST_READ_CONTACTS) {
-            if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                populateAutoComplete();
-            }
-        }
-    }
-
 
     /**
      * Attempts to sign in or register the account specified by the login form.
@@ -182,11 +122,6 @@ public class LoginActivity extends AppCompatActivity {
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(this).edit();
-            editor.putString("name", mEmailView.getText().toString());
-            editor.putString("id", mPasswordView.getText().toString());
-            editor.putString("post", mPostView.getText().toString());
-            editor.apply();
             new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -198,11 +133,10 @@ public class LoginActivity extends AppCompatActivity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(LoginActivity.this);
                             Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                            intent.putExtra("name", pref.getString("name", ""));
-                            intent.putExtra("id", pref.getString("id", ""));
-                            intent.putExtra("post", pref.getString("post", ""));
+                            intent.putExtra("name",  mEmailView.getText().toString());
+                            intent.putExtra("id", mPasswordView.getText().toString());
+                            intent.putExtra("post", mPostView.getText().toString());
                             startActivity(intent);
                             finish();
                         }

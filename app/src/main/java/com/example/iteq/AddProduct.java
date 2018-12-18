@@ -64,10 +64,10 @@ public class AddProduct extends AppCompatActivity implements View.OnClickListene
                     Toast.makeText(this, "“定制单号”格式不正确", Toast.LENGTH_SHORT).show();
                 } else {
                     //获取当前时间
-                    SimpleDateFormat simpleDateFormat=new SimpleDateFormat("yyyy年MM月dd日 HH:mm:ss");
+                    SimpleDateFormat simpleDateFormat=new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
                     Date date=new Date(System.currentTimeMillis());
                     String time=simpleDateFormat.format(date);
-                    Table table = new Table(s1, s2, s3, s4, s5, s6, "{制表--" +"时间:"+time+",岗位:"+post+","+"姓名:"+name+"}", "");
+                    Table table = new Table(s1, s2, s3, s4, s5, s6, "制表--\n" +"时间:"+time+"\n"+"岗位:"+post+"\t\t"+"姓名:"+name+"\n", "");
                     table.save(new SaveListener<String>() {
                         @Override
                         public void done(String s, BmobException e) {
@@ -88,7 +88,7 @@ public class AddProduct extends AppCompatActivity implements View.OnClickListene
                                 customer_name.setText("");
                                 customer_code.setText("");
                             } else {
-                                Toast.makeText(AddProduct.this, "创建工单失败,再提交一次" + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                Toast.makeText(AddProduct.this, "创建工单失败,请重试" + e.getMessage(), Toast.LENGTH_SHORT).show();
                             }
                         }
                     });

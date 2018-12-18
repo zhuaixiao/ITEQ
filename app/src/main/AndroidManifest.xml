@@ -37,11 +37,7 @@
         android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"
-            android:label="工单（下拉刷新）"
-            android:launchMode="singleTask" />
-        <activity
-            android:name=".LoginActivity"
-            android:windowSoftInputMode="stateHidden">
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -49,25 +45,15 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".LoginActivity"
+            android:windowSoftInputMode="stateHidden"></activity>
+        <activity
             android:name=".AddProduct"
             android:windowSoftInputMode="stateHidden" />
         <activity
             android:name=".ProductActivity"
             android:theme="@style/ProductActivityTheme" />
         <activity android:name=".About"></activity>
-        <activity
-            android:name="cn.bmob.v3.update.UpdateDialogActivity"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"></activity>
-
-        <provider
-            android:name="android.support.v4.content.FileProvider"
-            android:authorities="cn.bmob.update.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
     </application>
 
 </manifest>

@@ -16,19 +16,24 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v4.widget.DrawerLayout;
-import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
+import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.nineoldandroids.view.ViewHelper;
+import com.scwang.smartrefresh.layout.SmartRefreshLayout;
+import com.scwang.smartrefresh.layout.api.RefreshLayout;
+import com.scwang.smartrefresh.layout.listener.OnLoadMoreListener;
+import com.scwang.smartrefresh.layout.listener.OnRefreshListener;
 import com.yzq.zxinglibrary.android.CaptureActivity;
 import com.yzq.zxinglibrary.common.Constant;
 
@@ -40,7 +45,6 @@ import cn.bmob.v3.Bmob;
 import cn.bmob.v3.BmobQuery;
 import cn.bmob.v3.exception.BmobException;
 import cn.bmob.v3.listener.FindListener;
-import cn.bmob.v3.update.BmobUpdateAgent;
 import de.hdodenhof.circleimageview.CircleImageView;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -48,35 +52,41 @@ import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
     private DrawerLayout mDrawerLayout;
-    private TextView worknumber;
-    private TextView username;
-    private TextView mPost;
+    private TextView userId;
+    private TextView userName;
+    private TextView userPost;
     private CircleImageView imageView;
     private NavigationView navView;
     private ProductAdapter adapter;
     static final int REQUEST_CODE_SCAN = 2;
     private List<Product> productList = new ArrayList<>();
-    private SwipeRefreshLayout swipeRefresh;
-    private String number;
+    private SmartRefreshLayout smartRefresh;
     private static boolean isExit = false;
+    private SharedPreferences pref;
+    private SharedPreferences.Editor editor;
+    private String myName;
+    private String myId;
+    private String myPost;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        //初始化Bmob
+        Bmob.initialize(this, "bae1a67e9200774d8d2baa7aad589dd0");
         init();
         loadBingPic();
         initProduct();
         //获取侧滑菜单上控件id
         View headerView = navView.getHeaderView(0);
-        worknumber = headerView.findViewById(R.id.work_number);
-        username = headerView.findViewById(R.id.username);
-        mPost = headerView.findViewById(R.id.mpost);
+        userId = headerView.findViewById(R.id.work_number);
+        userName = headerView.findViewById(R.id.username);
+        userPost = headerView.findViewById(R.id.mpost);
         imageView = headerView.findViewById(R.id.icon_image);
         //设置人员详情
-        worknumber.setText("ID：" + getIntent().getStringExtra("id"));
-        username.setText(getIntent().getStringExtra("name"));
-        mPost.setText("岗位：" + getIntent().getStringExtra("post"));
+        userId.setText("ID：" + myId);
+        userName.setText(myName);
+        userPost.setText("岗位：" + myPost);
         imageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -85,13 +95,6 @@ public class MainActivity extends AppCompatActivity {
                 finish();
             }
         });
-        //设置Adapter
-        RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
-        GridLayoutManager layoutManager = new GridLayoutManager(this, 2);
-        recyclerView.setLayoutManager(layoutManager);
-        adapter = new ProductAdapter(productList, getIntent().getStringExtra("name"),
-                getIntent().getStringExtra("post"));
-        recyclerView.setAdapter(adapter);
     }
 
     @Override
@@ -101,11 +104,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void init() {
-        //Dialog弹窗软件自动更新
-        BmobUpdateAgent.update(this);
-        BmobUpdateAgent.setUpdateOnlyWifi(false);
-        //初始化Bmob
-        Bmob.initialize(this, "bae1a67e9200774d8d2baa7aad589dd0");
+        //保存个人信息
+        String mName = getIntent().getStringExtra("name");
+        String mId = getIntent().getStringExtra("id");
+        String mPost = getIntent().getStringExtra("post");
+        if (!TextUtils.isEmpty(mName) && !TextUtils.isEmpty(mId) && !TextUtils.isEmpty(mPost)) {
+            editor = PreferenceManager.getDefaultSharedPreferences(this).edit();
+            editor.putString("name", mName);
+            editor.putString("id", mId);
+            editor.putString("post", mPost);
+            editor.apply();
+        }
+
+        pref = PreferenceManager.getDefaultSharedPreferences(this);
+        myName = pref.getString("name", "");
+        myId = pref.getString("id", "");
+        myPost = pref.getString("post", "");
+        //设置Adapter
+        RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
+        GridLayoutManager layoutManager = new GridLayoutManager(this, 2);
+        recyclerView.setLayoutManager(layoutManager);
+        adapter = new ProductAdapter(productList, myName,
+                myPost);
+        recyclerView.setAdapter(adapter);
         //设置toolbar为标题栏
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -117,15 +138,19 @@ public class MainActivity extends AppCompatActivity {
             actionBar.setHomeAsUpIndicator(R.drawable.ic_menu_black_24dp);
         }
         //设置下拉刷新
-        swipeRefresh = findViewById(R.id.swipe_refresh);
-        swipeRefresh.setColorSchemeResources(R.color.colorAccent);
-        swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+        smartRefresh = findViewById(R.id.smartRefresh);
+        smartRefresh.setOnRefreshListener(new OnRefreshListener() {
             @Override
-            public void onRefresh() {
-                loadBingPic();
+            public void onRefresh(@NonNull RefreshLayout refreshLayout) {
                 initProduct();
-                adapter.notifyDataSetChanged();
-                swipeRefresh.setRefreshing(false);
+                refreshLayout.finishRefresh(2000);
+            }
+        });
+        smartRefresh.setOnLoadMoreListener(new OnLoadMoreListener() {
+            @Override
+            public void onLoadMore(@NonNull RefreshLayout refreshLayout) {
+                initProduct();
+                refreshLayout.finishLoadMore(2000);
             }
         });
         //初始化悬浮按钮
@@ -133,11 +158,15 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Toast.makeText(MainActivity.this, "创建工单", Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(MainActivity.this, AddProduct.class);
-                intent.putExtra("name", getIntent().getStringExtra("name"));
-                intent.putExtra("post", getIntent().getStringExtra("post"));
-                startActivity(intent);
+                if (!TextUtils.isEmpty(myName) && !TextUtils.isEmpty(myPost)) {
+                    Toast.makeText(MainActivity.this, "创建工单", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(MainActivity.this, AddProduct.class);
+                    intent.putExtra("name", myName);
+                    intent.putExtra("post", myPost);
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(MainActivity.this, "请点击头像登录", Toast.LENGTH_SHORT).show();
+                }
             }
         });
         //定义侧滑菜单中的选项
@@ -180,6 +209,30 @@ public class MainActivity extends AppCompatActivity {
             String[] permissions = permissionList.toArray(new String[permissionList.size()]);
             ActivityCompat.requestPermissions(MainActivity.this, permissions, 1);
         }
+        //给DrawerLayout实现酷狗音乐侧滑效果
+        mDrawerLayout.addDrawerListener(new DrawerLayout.DrawerListener() {
+            @Override
+            public void onDrawerSlide(@NonNull View drawerView, float slideOffset) {
+                View mContent = mDrawerLayout.getChildAt(0);
+                //需要用到开源库implementation 'com.nineoldandroids:library:2.4.0'
+                ViewHelper.setTranslationX(mContent, drawerView.getMeasuredWidth() * slideOffset);
+            }
+
+            @Override
+            public void onDrawerOpened(@NonNull View drawerView) {
+
+            }
+
+            @Override
+            public void onDrawerClosed(@NonNull View drawerView) {
+
+            }
+
+            @Override
+            public void onDrawerStateChanged(int newState) {
+
+            }
+        });
     }
 
     /**
@@ -272,8 +325,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 final String bingPic = response.body().string();
-                SharedPreferences.Editor editor = PreferenceManager.
-                        getDefaultSharedPreferences(MainActivity.this).edit();
+                editor = pref.edit();
                 editor.putString("bing_pic", bingPic);
                 editor.apply();
             }
@@ -282,8 +334,8 @@ public class MainActivity extends AppCompatActivity {
 
     //加载工单数据
     private void initProduct() {
-        SharedPreferences perf = PreferenceManager.getDefaultSharedPreferences(this);
-        final String pic = perf.getString("bing_pic", "");
+        pref = PreferenceManager.getDefaultSharedPreferences(this);
+        final String pic = pref.getString("bing_pic", "");
         final BmobQuery<Table> bmobQuery = new BmobQuery<>();
         bmobQuery.order("-createdAt");
         bmobQuery.findObjects(new FindListener<Table>() {
@@ -299,7 +351,7 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             try {
-                                Thread.sleep(300);
+                                Thread.sleep(200);
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
@@ -319,27 +371,42 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void requestNumber(String number) {
-        SharedPreferences perf = PreferenceManager.getDefaultSharedPreferences(this);
-        final String pic = perf.getString("bing_pic", "");
-        BmobQuery<Table> bmobQuery = new BmobQuery<>();
-        bmobQuery.addWhereEqualTo("odd_numbers", number);
-        bmobQuery.findObjects(new FindListener<Table>() {
+    private void requestNumber(final String number) {
+        new Thread(new Runnable() {
             @Override
-            public void done(List<Table> list, BmobException e) {
-                if (e == null) {
-                    productList.clear();
-                    for (Table item : list
-                            ) {
-                        productList.add(new Product(item.getOdd_numbers(), pic));
-                    }
-                    adapter.notifyDataSetChanged();
-                } else {
-                    Toast.makeText(MainActivity.this, "查询失败！请检查是否已连接网络，否则不存在此工单",
-                            Toast.LENGTH_SHORT).show();
+            public void run() {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        pref = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                        final String pic = pref.getString("bing_pic", "");
+                        BmobQuery<Table> bmobQuery = new BmobQuery<>();
+                        bmobQuery.addWhereEqualTo("odd_numbers", number);
+                        bmobQuery.findObjects(new FindListener<Table>() {
+                            @Override
+                            public void done(List<Table> list, BmobException e) {
+                                if (e == null) {
+                                    productList.clear();
+                                    for (Table item : list
+                                            ) {
+                                        productList.add(new Product(item.getOdd_numbers(), pic));
+                                    }
+                                    adapter.notifyDataSetChanged();
+                                } else {
+                                    Toast.makeText(MainActivity.this, e.getMessage(),
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+                    }
+                });
             }
-        });
+        }).start();
     }
 
     //双击退出程序
@@ -348,6 +415,7 @@ public class MainActivity extends AppCompatActivity {
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             isExit = false;
+
         }
     };
 
